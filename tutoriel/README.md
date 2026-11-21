@@ -1,10 +1,8 @@
 # Tutoriel Flutter : Construction pas à pas du projet WindEnergy
 
-Bienvenue dans ce cours complet ! En tant qu'enseignant, je vous guide pas à pas dans la reproduction fidèle et la compréhension approfondie de l'application **WindEnergy**. 
+Bienvenue dans ce cours complet ! Je vous guide pas à pas dans la reproduction fidèle et la compréhension approfondie de l'application **WindEnergy**. 
 
 **WindEnergy** est une application dédiée au **monitoring d'une station d'énergie éolienne**, permettant d'**enregistrer une éolienne** (via un code d'appairage sécurisé) et de **la monitorer**.
-
-Ce tutoriel s'arrête exactement à l'état actuel d'avancement des fichiers du projet. Chaque fichier `.md` correspond à une notion/étape unique, explique en détail le **pourquoi** de chaque choix, détaille le code et se termine par un **attendu final**.
 
 ---
 
