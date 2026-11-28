@@ -4,7 +4,7 @@ Bienvenue dans ce cours complet d'ingénierie Flutter ! En tant qu'enseignant, j
 
 **WindEnergy** est une application professionnelle dédiée à la **supervision et au monitoring d'une station d'énergie éolienne**, permettant d'**enregistrer et appairer une éolienne** (via un code d'appairage sécurisé temporaire) et de **la monitorer** (puissance électrique en Watts, vitesse de rotation du rotor en RPM, direction de la nacelle et historique horaire).
 
-Le parcours est organisé en **4 Journées d'apprentissage progressives**, reliant la base de données SQL Cloud Supabase jusqu'aux écrans réactifs MVVM en Flutter. Chaque fichier `.md` correspond à une notion/étape unique, explique en détail le **pourquoi** de chaque choix, décortique le code et se termine par un **attendu final**.
+Le cours est conçu autour des principes de la **Clean Architecture** et du patron **MVVM**, avec une flexibilité totale de backend (**Supabase** et **Firebase**). Chaque fichier `.md` correspond à une notion/étape unique, explique en détail le **pourquoi** de chaque choix, décortique le code et se termine par un **attendu final**.
 
 ---
 
@@ -76,8 +76,23 @@ Le parcours est organisé en **4 Journées d'apprentissage progressives**, relia
 
 ---
 
+### 🔥 [Module Spécialisé : Intégration Alternative avec Google Firebase](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/)
+*Apprenez à maîtriser l'écosystème Google Cloud / Firebase et découvrez comment changer de backend sans réécrire l'application grâce à notre Clean Architecture.*
+
+- [Étape 0 : Introduction à Firebase et Grand Comparatif Firebase vs Supabase](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/00_introduction_et_comparatif_firebase_vs_supabase.md)
+- [Étape 1 : Setup de la Console Firebase et Configuration avec FlutterFire CLI](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/01_setup_firebase_console_et_flutterfire_cli.md)
+- [Étape 2 : Firebase Authentication vs Supabase Auth](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/02_firebase_authentication_vs_supabase_auth.md)
+- [Étape 3 : Cloud Firestore — Les Fondations NoSQL vs PostgreSQL](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/03_cloud_firestore_fondations_nosql_vs_postgresql.md)
+- [Étape 4 : Sécurité des Données — Firestore Security Rules vs Supabase RLS](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/04_securite_firestore_rules_vs_supabase_rls.md)
+- [Étape 5 : Modèles de Données DTO Firebase](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/05_modeles_donnees_firebase_dto.md)
+- [Étape 6 : Implémentation Concrète de `FirebaseService`](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/06_implementation_concrete_firebase_service.md)
+- [Étape 7 : Interchangeabilité Totale et Injection avec GetIt](file:///d:/PROJECT2026/windenergy/tutoriel/firebase/07_interchangeabilite_et_injection_dans_get_it.md)
+
+---
+
 ## 📌 Méthode de travail recommandée
 
 - **Suivez les étapes dans l'ordre chronologique (00 à 17)**.
 - **Lisez attentivement les explications conceptuelles** pour comprendre le *pourquoi* avant le *comment*.
+- **Consultez le module Firebase** pour comparer chaque brique technique et développer des compétences polyvalentes SQL & NoSQL.
 - **Vérifiez systématiquement l'attendu final** à la fin de chaque étape pour vous assurer que votre code est valide avant de passer à la suite.
