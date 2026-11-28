@@ -1,4 +1,5 @@
-class ServerException implements Exception {
+class ServerException implements Exception{
   final String reason;
+
   ServerException({this.reason = ""});
 }

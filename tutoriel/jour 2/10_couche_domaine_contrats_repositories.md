@@ -1,51 +1,54 @@
 # Étape 10 : Couche Domaine — Contrats des Repositories
 
-Dans une application conçue selon les principes de la **Clean Architecture**, la couche Domaine ne doit dépendre d'aucune technologie concrète (pas de Supabase, pas de SQL, pas de Bluetooth). Elle déclare uniquement des **contrats abstraits** définissant ce que l'application doit être capable de faire.
+En Clean Architecture, la couche **Domaine** est le chef d'orchestre : elle ne dépend d'aucune base de données, ni d'aucun paquet tiers. Elle définit uniquement des **contrats abstraits** (`abstract class`) qui spécifient ce que l'application doit pouvoir réaliser.
 
-Dans cette étape, nous allons étudier les 3 repositories abstraits du projet :
-1. `AuthentificationRepository` (Gestion de session et sécurité).
-2. `ProfileRepository` (Données du technicien).
-3. `TurbineRepository` (Enregistrement, comptage et surveillance des éoliennes).
-
----
-
-## 1. Pourquoi trois repositories distincts ? Le principe ISP de SOLID
-
-Le principe **ISP** (*Interface Segregation Principle* ou Ségrégation des Interfaces) stipule qu'il vaut mieux plusieurs petites interfaces spécialisées plutôt qu'une seule interface monolithique "fourre-tout".
-
-- Un écran d'authentification n'a pas besoin de connaître les méthodes de pilotage d'éoliennes.
-- Un widget de carte d'éolienne n'a pas besoin de connaître le mot de passe de l'utilisateur.
+Dans cette étape, nous allons étudier et reproduire les 3 contrats de Repositories :
+1. `AuthenticationRepository` (Sécurité et sessions).
+2. `ProfileRepository` (Profil technicien).
+3. `TurbineRepository` (Gestion et monitoring des éoliennes).
 
 ---
 
-## 2. Le contrat `AuthentificationRepository`
+## 1. Pourquoi des interfaces abstraites ? Le principe d'inversion des dépendances
 
-Ouvrez ou créez [lib/features/domain/repositories/authentification_repository.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/repositories/authentification_repository.dart) :
+Le principe **DIP** (*Dependency Inversion Principle*) de SOLID stipule que les modules de haut niveau (le domaine métier) ne doivent pas dépendre des modules de bas niveau (les détails techniques comme Supabase ou SQL). Les deux doivent dépendre d'abstractions.
+
+En définissant des contrats abstraits :
+- Les ViewModels et l'interface utilisateur s'appuient uniquement sur ces interfaces.
+- Si demain nous changeons de système de base de données, pas une seule ligne du Domaine ni de l'UI n'aura besoin d'être modifiée !
+
+---
+
+## 2. Le contrat `AuthenticationRepository`
+
+Ouvrez ou créez le fichier [lib/features/domain/repositories/authentication_repository.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/repositories/authentication_repository.dart) :
 
 ```dart
 import 'package:windenergy/utils/result.dart';
 
-abstract class AuthentificationRepository {
+abstract class AuthenticationRepository {
   FutureResult signIn({String email, String password});
   FutureResult signUp({String fullName, String email, String password});
   FutureResult signOut();
+  FutureResult<bool> isSignedIn();
 }
 ```
 
 ### Analyse pédagogique :
-- `abstract class` : Empêche toute instanciation directe. Ce n'est qu'un cahier des charges.
-- `FutureResult` : Toutes les méthodes retournent un résultat asynchrone sécurisé (`Result<T>`) sans risquer de lever une exception non gérée.
-- `signIn`, `signUp`, `signOut` : Les 3 opérations indispensables pour sécuriser l'accès au parc éolien.
+- `signIn({String email, String password})` : Authentification de l'opérateur avec ses identifiants.
+- `signUp(...)` : Inscription d'un nouveau technicien sur la plateforme.
+- `signOut()` : Déconnexion sécurisée et destruction de la session courante.
+- `isSignedIn()` : Vérifie si un technicien est actuellement connecté (permet de décider s'il faut afficher l'écran de Login ou le Dashboard au démarrage de l'app).
 
 ---
 
 ## 3. Le contrat `ProfileRepository`
 
-Ouvrez ou créez [lib/features/domain/repositories/profile_repository.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/repositories/profile_repository.dart) :
+Ouvrez ou créez le fichier [lib/features/domain/repositories/profile_repository.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/repositories/profile_repository.dart) :
 
 ```dart
-import 'package:windenergy/features/domain/entities/profile.dart';
-import 'package:windenergy/utils/result.dart';
+import "package:windenergy/features/domain/entities/profile.dart";
+import "package:windenergy/utils/result.dart";
 
 abstract class ProfileRepository {
   FutureResult<Profile> readProfile();
@@ -53,25 +56,25 @@ abstract class ProfileRepository {
 ```
 
 ### Analyse pédagogique :
-- `FutureResult<Profile>` : Garantit que l'appel renvoie soit une instance typée de notre entité `Profile`, soit une erreur explicative (`Error`).
+- `readProfile()` retourne un `FutureResult<Profile>`. Remarquez que la méthode ne demande aucun paramètre `userId` : c'est le rôle de l'implémentation de récupérer l'identifiant de la session courante !
 
 ---
 
 ## 4. Le contrat `TurbineRepository`
 
-Ouvrez ou créez [lib/features/domain/repositories/turbine_repository.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/repositories/turbine_repository.dart) :
+Ouvrez ou créez le fichier [lib/features/domain/repositories/turbine_repository.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/repositories/turbine_repository.dart) :
 
 ```dart
-import 'package:windenergy/features/domain/entities/pairing_code.dart';
-import 'package:windenergy/features/domain/entities/position.dart';
-import 'package:windenergy/features/domain/entities/turbine.dart';
-import 'package:windenergy/utils/result.dart';
+import "package:windenergy/features/domain/entities/pairing_code.dart";
+import "package:windenergy/features/domain/entities/position.dart";
+import "package:windenergy/features/domain/entities/turbine.dart";
+import "package:windenergy/utils/result.dart";
 
 abstract class TurbineRepository {
   FutureResult<int> readCount();
   FutureResult<double> readTotalPowerW();
   FutureResult<List<Turbine>> readTurbines();
-  FutureResult createTurbine({
+  FutureResult<int> createTurbine({
     String serialNumber,
     String customName,
     Position position,
@@ -87,29 +90,28 @@ abstract class TurbineRepository {
 }
 ```
 
-### Analyse des opérations d'enregistrement et de monitoring :
-- **Monitoring global du parc** :
-  - `readCount()` : Nombre total d'éoliennes sous supervision.
-  - `readTotalPowerW()` : Puissance totale combinée générée par toutes les turbines en service.
-  - `readTurbines()` : Récupération de la liste complète des éoliennes.
-- **Enregistrement et gestion d'une éolienne** :
-  - `createTurbine(...)` : Déclaration d'une nouvelle éolienne sur le site (numéro de série, nom, coordonnées GPS).
-  - `readPairingCode({int turbineId})` : Récupération du code d'appairage sécurisé pour associer l'appareil.
-  - `readTurbineActivation()` : Vérification de l'activation effective de la turbine.
-  - `updateTurbine(...)` et `deleteTurbine(...)` : Maintenance et désaffectation.
+### Analyse des opérations métiers :
+- **Supervision globale** :
+  - `readCount()` : Nombre d'éoliennes actives associées au technicien.
+  - `readTotalPowerW()` : Puissance totale combinée produite par l'ensemble du parc.
+  - `readTurbines()` : Récupération de la liste des éoliennes avec leur statut.
+- **Cycle de vie de la turbine** :
+  - `createTurbine(...)` : Enregistrement d'une nouvelle éolienne sur le site (retourne le nouvel identifiant `int` généré).
+  - `readPairingCode(...)` : Obtention du code d'appairage pour coupler le matériel.
+  - `updateTurbine(...)` et `deleteTurbine(...)` : Maintenance et suppression.
 
 ---
 
 ## 5. Attendu final
 
 Pour valider cette étape :
-1. Vérifiez que les 3 fichiers existent dans `lib/features/domain/repositories/`.
-2. Lancez le linter :
+1. Vérifiez que les 3 contrats existent dans `lib/features/domain/repositories/`.
+2. Lancez l'analyse :
    ```bash
    flutter analyze
    ```
 3. **Ce que vous devez observer :**
-   - Le compilateur Dart valide la cohérence des types.
-   - Les contrats du Domaine sont parfaitement définis et prêts à être implémentés par la couche Data.
+   - Aucune erreur détectée.
+   - Les contrats du Domaine sont parfaitement définis et formalisés.
 
-Passons aux abstractions des services techniques dans l'[Étape 11 : Couche Données — Services Abstraits](file:///d:/PROJECT2026/windenergy/tutoriel/11_couche_donnees_services_abstraits.md).
+Passons aux services abstraits de la couche Données dans l'[Étape 11 : Couche Données — Services Abstraits](file:///d:/PROJECT2026/windenergy/tutoriel/jour%202/11_couche_donnees_services_abstraits.md).

@@ -1,23 +1,19 @@
 # Étape 11 : Couche Données — Services Abstraits
 
-Dans l'architecture de notre projet **WindEnergy**, les Repositories ne parlent pas directement aux bibliothèques tierces comme Supabase ou aux capteurs matériels du téléphone. Ils s'appuient sur des **Services** techniques dédiés situés dans `lib/features/data/services/`.
+Dans notre architecture, les Repositories ne manipulent pas directement les SDKs externes (comme Supabase ou le GPS du téléphone). Ils délèguent les opérations bas niveau à des **Services techniques** spécialisés situés dans `lib/features/data/services/`.
 
-Dans cette étape, nous allons étudier :
+Dans cette étape, nous allons étudier et concevoir les deux abstractions de services :
 1. `PositionService` : Le service d'acquisition des coordonnées GPS.
-2. `DbService` : L'interface de communication avec la base de données.
+2. `DbService` : L'interface unifiée de communication avec la base de données.
 
 ---
 
-## 1. Pourquoi créer une couche de Services techniques ?
+## 1. Pourquoi abstraire la base de données via `DbService` ?
 
-Un débutant pourrait se demander : *"Pourquoi ne pas mettre le code Supabase ou le GPS directement dans le Repository ?"*
-
-### La réponse de l'ingénieur :
-1. **Séparation des préoccupations (SoC)** : 
-   - Le **Repository** a une responsabilité *métier* : il orchestre la logique (ex: avant de créer une turbine, récupérer la position GPS, valider les règles puis insérer en base).
-   - Le **Service** a une responsabilité *technique unitaire* : interagir avec une source brute (exécuter une requête SQL Supabase ou interroger le module GPS du smartphone).
-2. **Facilité de remplacement** :
-   - Si nous passons d'un plugin GPS à un autre, ou de Supabase vers Firebase ou une base SQLite locale hors-ligne, seul le `DbService` ou le `PositionService` change. Les Repositories et le Domaine restent rigoureusement intacts !
+Dans notre projet, Supabase est notre solution de stockage et d'authentification. Mais si nous écrivions des appels `supabaseClient.from(...)` directement dans nos repositories :
+- Le repository deviendrait dépendant de la syntaxe propriétaire de Supabase.
+- Il serait très difficile de tester le repository de façon isolée.
+- En introduisant l'interface `DbService`, nos repositories dépendent d'un contrat technique clair. Nous pourrons créer un `SupabaseService` en production, et un `MockDbService` dans nos tests unitaires !
 
 ---
 
@@ -33,9 +29,9 @@ abstract class PositionService {
 }
 ```
 
-### Analyse pédagogique :
-- `getPosition()` : Retourne une liste de décimaux `[latitude, longitude]` enveloppée dans un `FutureResult`.
-- Si le technicien refuse la permission GPS ou que le signal satellite est indisponible sous la tour de l'éolienne, le service retourne un `Error(reason: "Signal GPS introuvable")` au lieu de faire planter l'application.
+### Analyse :
+- `getPosition()` : Retourne une liste de deux coordonnées `[latitude, longitude]`.
+- Enveloppé dans un `FutureResult`, cela permet de gérer proprement les cas où le technicien désactive son GPS ou refuse les permissions de l'application.
 
 ---
 
@@ -46,26 +42,24 @@ Ouvrez ou créez le fichier [lib/features/data/services/db_service.dart](file://
 ```dart
 import 'package:windenergy/features/domain/entities/pairing_code.dart';
 import 'package:windenergy/features/domain/entities/position.dart';
-import 'package:windenergy/features/domain/entities/profile.dart';
 import 'package:windenergy/features/domain/entities/turbine.dart';
 import 'package:windenergy/utils/result.dart';
+import 'package:windenergy/features/domain/entities/profile.dart';
 
 abstract class DbService {
-  FutureResult signIn({String email, String password});
-  FutureResult signUp({String fullName, String email, String password});
+  FutureResult<String> signIn({String email, String password});
+  FutureResult<String> signUp({String fullName, String email, String password});
   FutureResult signOut();
-
-  FutureResult<Profile> readProfile();
-
-  FutureResult<int> readCount();
-  FutureResult<double> readTotalPowerW();
-  FutureResult<List<Turbine>> readTurbines();
-  FutureResult createTurbine({
+  FutureResult<Profile> readProfile({String userId});
+  FutureResult<int> readCount({String userId});
+  FutureResult<double> readTotalPowerW({String userId});
+  FutureResult<List<Turbine>> readTurbines({String userId});
+  FutureResult<int> createTurbine({
+    String userId,
     String serialNumber,
     String customName,
     Position position,
   });
-
   FutureResult<PairingCode> readPairingCode({int turbineId});
   FutureResult readTurbineActivation();
   FutureResult updateTurbine({
@@ -78,23 +72,21 @@ abstract class DbService {
 ```
 
 ### Analyse pédagogique :
-- `DbService` regroupe l'ensemble des requêtes techniques adressées à la source de données distante (par exemple Supabase).
-- Il fournit les briques élémentaires que les repositories vont consommer et coordonner.
+- `signIn` et `signUp` retournent `FutureResult<String>` : la chaîne retournée correspond à l'identifiant unique de l'utilisateur (`userId` ou `UUID`) généré par le système d'authentification.
+- Les méthodes de lecture (`readProfile`, `readCount`, `readTotalPowerW`, `readTurbines`, `createTurbine`) prennent explicitement le paramètre `String userId` : le service technique exécute la requête ciblée sur cet utilisateur précis.
 
 ---
 
 ## 4. Attendu final
 
 Pour valider cette étape :
-1. Vérifiez que les deux fichiers existent dans [lib/features/data/services/](file:///d:/PROJECT2026/windenergy/lib/features/data/services/) :
-   - `position_service.dart`
-   - `db_service.dart`
-2. Lancez la commande d'analyse :
+1. Vérifiez que [lib/features/data/services/position_service.dart](file:///d:/PROJECT2026/windenergy/lib/features/data/services/position_service.dart) et [lib/features/data/services/db_service.dart](file:///d:/PROJECT2026/windenergy/lib/features/data/services/db_service.dart) sont conformes.
+2. Lancez l'analyse :
    ```bash
    flutter analyze
    ```
 3. **Ce que vous devez observer :**
-   - Aucune erreur détectée.
-   - Vos contrats de services techniques sont posés, prêts à être consommés par les implémentations de repositories.
+   - Aucune erreur.
+   - Les contrats de services techniques sont établis.
 
-Passons à la mise en œuvre des repositories dans l'[Étape 12 : Couche Données — Implémentations des Repositories](file:///d:/PROJECT2026/windenergy/tutoriel/12_couche_donnees_implementations_repositories.md).
+Vous avez terminé le **Jour 2** ! Passons au **Jour 3** avec l'implémentation de la session et des repositories.

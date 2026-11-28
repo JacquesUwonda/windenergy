@@ -1,9 +1,9 @@
 import 'package:equatable/equatable.dart';
 
-class Telemetry extends Equatable {
+class Telemetry extends Equatable{
   final int turbineId;
   final double powerW;
-  final double rotationDeg;
+  final double rotationRpm;
   final double orientationDeg;
   final DateTime? recordedAt;
   final DateTime? receivedAt;
@@ -11,10 +11,10 @@ class Telemetry extends Equatable {
   const Telemetry({
     this.turbineId = 0,
     this.powerW = 0.0,
-    this.rotationDeg = 0.0,
+    this.rotationRpm = 0.0,
     this.orientationDeg = 0.0,
     this.recordedAt,
-    this.receivedAt,
+    this.receivedAt
   });
 
   @override

@@ -1,18 +1,18 @@
-# Étape 9 : Couche Domaine — Télémétrie et Monitoring
+# Étape 9 : Couche Domaine — Entités Télémétrie et Monitoring
 
-Maintenant que nos éoliennes sont enregistrées et géolocalisées, il est temps de modéliser le cœur opérationnel de l'application : **le monitoring énergétique**.
+Maintenant que nos éoliennes sont modélisées et géolocalisées, nous devons concevoir les structures de données pour le **monitoring opérationnel**. Dans une station d'énergie éolienne, des capteurs mesurent en permanence l'énergie produite et l'état mécanique du rotor.
 
 Dans cette étape, nous allons étudier et concevoir les deux entités de mesures :
 1. `Telemetry` : La télémétrie instantanée (temps réel).
-2. `TelemetryHourly` : Les données historiques agrégées par heure.
+2. `TelemetryHourly` : Les données statistiques agrégées par heure.
 
 ---
 
-## 1. Pourquoi séparer la télémétrie instantanée et la télémétrie horaire ?
+## 1. Pourquoi distinguer la télémétrie instantanée et la télémétrie horaire ?
 
-Dans les systèmes industriels de supervision (SCADA) :
-- **La mesure instantanée (`Telemetry`)** arrive à haute fréquence (toutes les quelques secondes). Elle sert à afficher les cadrans en direct : rotation des pales, angle de giration face au vent et puissance électrique produite à la seconde.
-- **La mesure agrégée (`TelemetryHourly`)** condense les milliers de points de données reçus sur une heure : puissance moyenne, puissance maximale, vitesse moyenne de rotation (RPM) et total d'énergie électrique injectée en Watt-heure (`energyWh`). Elle sert à afficher les graphiques d'historique et à calculer le rendement de la station.
+Dans un système industriel SCADA :
+- **La mesure instantanée (`Telemetry`)** est envoyée à haute fréquence par l'automate de l'éolienne. Elle sert à afficher les jauges en direct dans l'application mobile : puissance actuelle générée et vitesse de rotation des pales.
+- **La mesure agrégée (`TelemetryHourly`)** condense les milliers de mesures reçues au cours d'une heure : puissance moyenne, pic de puissance maximale, vitesse de rotation moyenne, et énergie totale produite en Watt-heure (`energyWh`). Elle sert à afficher les graphiques de production et à calculer le bilan énergétique.
 
 ---
 
@@ -26,7 +26,7 @@ import 'package:equatable/equatable.dart';
 class Telemetry extends Equatable {
   final int turbineId;
   final double powerW;
-  final double rotationDeg;
+  final double rotationRpm;
   final double orientationDeg;
   final DateTime? recordedAt;
   final DateTime? receivedAt;
@@ -34,7 +34,7 @@ class Telemetry extends Equatable {
   const Telemetry({
     this.turbineId = 0,
     this.powerW = 0.0,
-    this.rotationDeg = 0.0,
+    this.rotationRpm = 0.0,
     this.orientationDeg = 0.0,
     this.recordedAt,
     this.receivedAt,
@@ -45,17 +45,17 @@ class Telemetry extends Equatable {
 }
 ```
 
-### Analyse des champs de télémétrie :
-- `turbineId` : Référence l'éolienne concernée par la mesure.
-- `powerW` : Puissance électrique instantanée générée en Watts (W).
-- `rotationDeg` : Angle de rotation instantané des pales (de 0° à 360°), utile pour animer la rotation de l'éolienne sur l'écran !
-- `orientationDeg` : Angle de direction de la nacelle par rapport au Nord pour capter le vent optimal.
-- `recordedAt` : Heure exacte de la mesure horodatée par le capteur de la turbine.
-- `receivedAt` : Heure de réception du paquet réseau sur le serveur (permet de surveiller la latence réseau).
+### Analyse des attributs :
+- `turbineId` : Référence numérique de la turbine concernée.
+- `powerW` : Puissance électrique instantanée produite en Watts (W).
+- `rotationRpm` : Vitesse de rotation des pales en tours par minute (RPM - *Rotations Per Minute*).
+- `orientationDeg` : Angle d'orientation de la nacelle par rapport au Nord (0° à 360°).
+- `recordedAt` : Date et heure précises de la mesure au niveau du capteur.
+- `receivedAt` : Date et heure de réception par le serveur central.
 
 ---
 
-## 3. L'Entité `TelemetryHourly` (Historique et Statistiques)
+## 3. L'Entité `TelemetryHourly` (Statistiques et Énergie)
 
 Ouvrez ou créez le fichier [lib/features/domain/entities/telemetry_hourly.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/telemetry_hourly.dart) :
 
@@ -85,27 +85,25 @@ class TelemetryHourly extends Equatable {
 ```
 
 ### Analyse des indicateurs statistiques :
-- `maxPowerW` : Pic de puissance atteint durant l'heure (utile pour détecter les surtensions).
-- `avgPowerW` : Puissance moyenne produite durant l'heure.
-- `avgRpm` : Vitesse moyenne de rotation du rotor en tours par minute.
-- `energyWh` : Énergie cumulée produite sur l'heure (en Watt-heure).
-- `bucketStart` : Début du créneau horaire (ex: 2026-11-21 14:00:00).
-- `props => [turbineId, bucketStart]` : Deux enregistrements pour la même turbine sur le même créneau horaire correspondent au même paquet statistique.
+- `maxPowerW` : Puissance de crête (maximale) atteinte au cours de l'heure.
+- `avgPowerW` : Puissance moyenne produite pendant l'heure.
+- `avgRpm` : Vitesse de rotation moyenne du rotor.
+- `energyWh` : Quantité totale d'électricité produite sur le créneau en Watt-heure ($E = P_{moyenne} \times 1\text{h}$).
+- `bucketStart` : Début du créneau d'une heure (ex: 14:00:00).
+- `props => [turbineId, bucketStart]` : Deux agrégations pour la même turbine sur la même tranche horaire représentent la même tranche statistique.
 
 ---
 
 ## 4. Attendu final
 
 Pour valider cette étape :
-1. Vérifiez que les deux fichiers existent :
-   - [lib/features/domain/entities/telemetry.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/telemetry.dart)
-   - [lib/features/domain/entities/telemetry_hourly.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/telemetry_hourly.dart)
-2. Exécutez :
+1. Vérifiez que [lib/features/domain/entities/telemetry.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/telemetry.dart) et [lib/features/domain/entities/telemetry_hourly.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/telemetry_hourly.dart) sont conformes.
+2. Lancez l'analyse :
    ```bash
    flutter analyze
    ```
 3. **Ce que vous devez observer :**
-   - Zéro avertissement.
-   - Votre domaine dispose désormais de toute la modélisation mathématique et physique nécessaire pour superviser la station éolienne.
+   - Aucune erreur sur ces fichiers.
+   - Les entités de télémétrie reflètent fidèlement la physique de la station éolienne.
 
-Passons aux contrats d'accès aux données dans l'[Étape 10 : Couche Domaine — Contrats des Repositories](file:///d:/PROJECT2026/windenergy/tutoriel/10_couche_domaine_contrats_repositories.md).
+Passons aux contrats d'accès aux données dans l'[Étape 10 : Couche Domaine — Contrats des Repositories](file:///d:/PROJECT2026/windenergy/tutoriel/jour%202/10_couche_domaine_contrats_repositories.md).

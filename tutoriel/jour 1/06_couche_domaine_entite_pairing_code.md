@@ -1,33 +1,34 @@
 # Étape 6 : Couche Domaine — L'Entité PairingCode (Enregistrement)
 
-Dans une station d'énergie éolienne, connecter son terminal ou son compte technicien à une éolienne industrielle ne se fait pas au hasard. Pour des raisons de sécurité évidentes, l'opérateur doit passer par un processus d'**enregistrement et d'appairage**.
+Dans une station d'énergie éolienne, connecter son terminal mobile à une éolienne industrielle nécessite une procédure d'appairage sécurisée. L'éolienne génère un code secret temporaire qu'un opérateur doit valider pour en prendre le contrôle.
 
-Dans cette étape, nous allons étudier et concevoir l'entité `PairingCode` telle qu'elle existe dans `lib/features/domain/entities/pairing_code.dart`.
-
----
-
-## 1. Comprendre le cycle d'enregistrement d'une éolienne
-
-Pourquoi a-t-on besoin d'un code d'appairage ?
-1. Chaque éolienne physique du parc possède un identifiant unique (`turbineId`, un entier).
-2. Pour enregistrer une éolienne et commencer à la monitorer, l'opérateur (`userId`) reçoit ou génère un code sécurisé.
-3. Pour éviter qu'un tiers intercepte ce code en clair, on manipule son empreinte sécurisée (`codeHash`).
-4. Ce code a une durée de vie limitée : il est créé à une date (`createdAt`), expire à une date précise (`expiresAt`), et devient effectif au moment de la validation (`validatedAt`).
-5. Son statut est suivi via une énumération claire : `valid` ou `invalid` (`PairingStatus`).
+Dans cette étape, nous allons étudier et reproduire l'entité `PairingCode` telle qu'elle est définie dans `lib/features/domain/entities/pairing_code.dart`.
 
 ---
 
-## 2. Le code source exact : `lib/features/domain/entities/pairing_code.dart`
+## 1. Comprendre le cycle de vie du code d'appairage
+
+Dans notre base de données PostgreSQL / Supabase (schéma `windenergy.sql`) :
+1. Chaque code est associé à une éolienne physique spécifique (`turbineId`).
+2. Pour ne pas exposer le code en clair, on stocke son empreinte alphanumérique sécurisée (`codeHash`).
+3. Le code possède une date de création (`createdAt`) et une date d'expiration (`expiresAt`), fixée à **15 minutes** après sa génération.
+4. Tant que le code n'est pas utilisé et que la date d'expiration n'est pas dépassée, son statut est `PairingStatus.valid`.
+5. Dès que le code est validé ou expiré, il passe en `PairingStatus.invalid` et sa date de validation (`validatedAt`) est enregistrée.
+
+> **Note d'architecture :** Remarquez que `userId` ne fait pas partie de l'entité `PairingCode`. En effet, le code d'appairage appartient à la turbine physique (`turbine_id`). C'est la table `turbines` qui relie l'éolienne à l'utilisateur (`profile_id`). Cette séparation garantit une base de données normalisée et sans duplication.
+
+---
+
+## 2. Le code source : `lib/features/domain/entities/pairing_code.dart`
 
 Ouvrez ou créez le fichier [lib/features/domain/entities/pairing_code.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/pairing_code.dart) :
 
 ```dart
 import "package:equatable/equatable.dart";
 
-enum PairingStatus{ valid, invalid}
+enum PairingStatus { valid, invalid }
 
-class PairingCode extends Equatable{
-  final String userId;
+class PairingCode extends Equatable {
   final int turbineId;
   final String codeHash;
   final PairingStatus status;
@@ -36,61 +37,50 @@ class PairingCode extends Equatable{
   final DateTime? validatedAt;
 
   const PairingCode({
-    this.userId = "",
     this.turbineId = 0,
     this.codeHash = "",
     this.status = PairingStatus.invalid,
     this.expiresAt,
     this.createdAt,
-    this.validatedAt
+    this.validatedAt,
   });
 
   @override
-  List<Object?> get props => [userId, turbineId, codeHash, createdAt];
+  List<Object?> get props => [turbineId, codeHash, createdAt];
 }
 ```
 
 ---
 
-## 3. Analyse détaillée pour débutant
+## 3. Analyse des concepts pour débutant
 
 ### A. L'énumération : `enum PairingStatus { valid, invalid }`
-- **Pourquoi un enum ?** En tant qu'ingénieur, manipuler des chaînes de caractères comme `"valide"`, `"invalide"` ou des booléens `true/false` est une source majeure de bogues silencieux. Un `enum` définit un ensemble fermé de valeurs reconnues par le compilateur Dart.
-- Si le statut est `valid`, l'appairage peut être initié. S'il est `invalid`, l'application refuse l'accès à la commande de la turbine.
+- Utiliser un `enum` au lieu de chaînes de caractères (`"valid"`, `"invalid"`) évite les erreurs de typographie et permet au compilateur Dart de valider l'exhaustivité des cas dans vos structures conditionnelles.
 
-### B. Les attributs et la gestion temporelle
-- `final int turbineId` : Le numéro d'identification de l'éolienne ciblée (par exemple turbine 1, turbine 2).
-- `final String userId` : L'identifiant de l'utilisateur qui enregistre la turbine.
-- `final String codeHash` : La signature cryptographique du code secret.
-- `final DateTime? expiresAt`, `createdAt`, `validatedAt` : 
-  - Le `?` signifie que ces variables peuvent être `null` (Null Safety). Par exemple, tant que le code n'a pas été validé avec succès par le serveur, `validatedAt` reste `null`.
+### B. Les attributs et la Null Safety
+- `final int turbineId` : Référence numérique de la turbine cible.
+- `final String codeHash` : La chaîne alphanumérique du code secret.
+- `final DateTime? expiresAt`, `createdAt`, `validatedAt` : Déclarés avec le suffixe `?` (nullable). Par exemple, tant que le code n'a pas été validé, `validatedAt` vaut `null`.
 
-### C. Le constructeur constant `const PairingCode(...)`
-- Comme pour `Profile`, tous les champs sont `final`.
-- Les valeurs par défaut (`this.status = PairingStatus.invalid`, `this.turbineId = 0`, etc.) garantissent qu'on ne se retrouve jamais avec une variable indéfinie qui ferait crasher l'application.
-
-### D. La surcharge d'égalité : `props`
+### C. La surcharge d'égalité avec `Equatable`
 ```dart
 @override
-List<Object?> get props => [userId, turbineId, codeHash, createdAt];
+List<Object?> get props => [turbineId, codeHash, createdAt];
 ```
-- Pourquoi inclure `createdAt` ? Deux tentatives d'enregistrement pour la même turbine et le même utilisateur mais à des dates différentes représentent deux sessions d'enregistrement distinctes. `Equatable` prend ces 4 propriétés pour vérifier si deux objets `PairingCode` représentent le même enregistrement.
+- Deux instances de `PairingCode` ayant le même `turbineId`, le même `codeHash` et créées au même instant `createdAt` sont considérées par Dart comme représentant le même événement d'appairage.
 
 ---
 
 ## 4. Attendu final
 
 Pour valider cette étape :
-1. Assurez-vous que le fichier est présent et fidèle dans [lib/features/domain/entities/pairing_code.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/pairing_code.dart).
-2. Lancez l'analyse du projet depuis le terminal :
+1. Vérifiez que [lib/features/domain/entities/pairing_code.dart](file:///d:/PROJECT2026/windenergy/lib/features/domain/entities/pairing_code.dart) est conforme.
+2. Lancez l'analyse :
    ```bash
    flutter analyze
    ```
 3. **Ce que vous devez observer :**
-   - La commande s'exécute sans erreur (`No issues found!`).
-   - Le socle métier du projet **WindEnergy** est parfaitement en place avec :
-     - La gestion unifiée des résultats et erreurs : `lib/utils/result.dart`.
-     - L'entité utilisateur / technicien : `lib/features/domain/entities/profile.dart`.
-     - L'entité d'enregistrement d'éolienne : `lib/features/domain/entities/pairing_code.dart`.
+   - Aucune erreur sur le fichier.
+   - Les entités de base du Jour 1 (`Profile` et `PairingCode`) sont posées avec rigueur.
 
-Vous avez complété avec succès toutes les étapes correspondant aux fichiers actuellement construits dans le projet !
+Vous avez terminé le **Jour 1** ! Passons au **Jour 2** avec l'[Étape 7 : Couche Domaine — L'Entité Position](file:///d:/PROJECT2026/windenergy/tutoriel/jour%202/07_couche_domaine_entite_position.md).

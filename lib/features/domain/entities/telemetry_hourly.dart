@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-class TelemetryHourly extends Equatable {
+class TelemetryHourly extends Equatable{
   final int turbineId;
   final double maxPowerW;
   final double avgPowerW;
@@ -14,7 +14,7 @@ class TelemetryHourly extends Equatable {
     this.avgPowerW = 0.0,
     this.avgRpm = 0.0,
     this.energyWh = 0.0,
-    this.bucketStart,
+    this.bucketStart
   });
 
   @override

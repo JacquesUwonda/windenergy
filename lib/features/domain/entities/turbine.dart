@@ -1,9 +1,9 @@
 import 'package:equatable/equatable.dart';
 import 'package:windenergy/features/domain/entities/position.dart';
 
-enum TurbineStatus { active, inactive }
+enum TurbineStatus{active, inactive}
 
-class Turbine extends Equatable {
+class Turbine extends Equatable{
   final int id;
   final String serialNumber;
   final String customName;
@@ -17,10 +17,9 @@ class Turbine extends Equatable {
     this.customName = "",
     this.position = const Position(),
     this.status = TurbineStatus.inactive,
-    this.createdAt,
+    this.createdAt
   });
 
   @override
-  // TODO: implement props
   List<Object?> get props => [id];
 }
